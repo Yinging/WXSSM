@@ -1,6 +1,9 @@
 package com.yinging.ssm.module.weixin.controller;
 
+import com.yinging.ssm.module.weixin.pojo.AccessToken;
 import com.yinging.ssm.module.weixin.pojo.ImgText;
+import com.yinging.ssm.module.weixin.pojo.ShareUrl;
+import com.yinging.ssm.module.weixin.pojo.TicketInfo;
 import com.yinging.ssm.module.weixin.util.MessageUtil;
 import com.yinging.ssm.module.weixin.util.CheckUtil;
 import com.yinging.ssm.module.weixin.util.WXUtil;
@@ -17,6 +20,9 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Context;
 import java.io.IOException;
 import java.util.Map;
+
+import static com.yinging.ssm.module.weixin.util.WXUtil.APPID;
+import static com.yinging.ssm.module.weixin.util.WXUtil.APPSECRET;
 
 /**
  * 微信开发入门 -- 个人学习总结
@@ -111,5 +117,19 @@ public class WeiXinController {
             message = MessageUtil.sendText(toUserName,fromUserName,label);
         }
         return message;
+    }
+
+    /**
+     * 微信自定义分享
+     * @throws Exception
+     */
+    @RequestMapping(value = "shareWX",method = RequestMethod.POST)
+    @ResponseBody
+    public Map shareWX(ShareUrl url,@Context HttpServletRequest req, @Context HttpServletResponse resp) throws Exception {
+        System.out.println("url:"+url.getShareurl());
+        AccessToken accessToken = WXUtil.getAccessToken();
+        TicketInfo ticketInfo = WXUtil.getTicket(accessToken.getToken());
+        Map<String,String> wechatParam = WXUtil.getWechatParam(ticketInfo.getTicket(),url.getShareurl());
+        return wechatParam;
     }
 }

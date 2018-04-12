@@ -1,6 +1,7 @@
 package com.yinging.ssm.module.weixin.util;
 
 import com.yinging.ssm.module.weixin.pojo.AccessToken;
+import com.yinging.ssm.module.weixin.pojo.TicketInfo;
 import net.sf.json.JSONObject;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -12,6 +13,13 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Formatter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 微信工具类
@@ -25,6 +33,7 @@ public class WXUtil {
     private static final String CREATE_MENU_URL = "https://api.weixin.qq.com/cgi-bin/menu/create?access_token=ACCESS_TOKEN";
     private static final String QUERY_MENU_URL = "https://api.weixin.qq.com/cgi-bin/menu/get?access_token=ACCESS_TOKEN";
     private static final String DELETE_MENU_URL = "https://api.weixin.qq.com/cgi-bin/menu/delete?access_token=ACCESS_TOKEN";
+    private static final String JSAPI_TICKET_URL = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=ACCESS_TOKEN&type=jsapi";
 
     /**
      * 获得get请求的JSON对象
@@ -112,5 +121,73 @@ public class WXUtil {
             result = jsonObject.getInt("errcode");
         }
         return result;
+    }
+
+    /**
+     * 获取票据jsapi_ticket
+     */
+    public static TicketInfo getTicket(String access_token) throws Exception {
+        TicketInfo ticketInfo = new TicketInfo();
+        String url = JSAPI_TICKET_URL.replace("ACCESS_TOKEN", access_token);
+        JSONObject jsonObject = doGetStr(url);
+        System.out.println("jsonObject:"+jsonObject);
+        if (null != jsonObject) {
+            ticketInfo.setTicket(jsonObject.getString("ticket"));
+            ticketInfo.setExpiresIn(jsonObject.getInt("expires_in"));
+        }
+        return ticketInfo;
+    }
+
+    /**
+     * 生成微信权限验证的参数
+     */
+    public static Map<String,String> getWechatParam(String jsapiTicket, String url){
+        Map<String, String> ret = new HashMap<String, String>();
+        String noncestr = createNonceStr();
+        String timestamp = createTimestamp();
+        String string1;
+        String signature = "";
+
+        //注意这里参数名必须全部小写，且必须有序
+        string1 = "jsapi_ticket=" + jsapiTicket +
+                "&noncestr=" + noncestr +
+                "&timestamp=" + timestamp +
+                "&url=" + url;
+        try{
+            MessageDigest crypt = MessageDigest.getInstance("SHA-1");
+            crypt.reset();
+            crypt.update(string1.getBytes("UTF-8"));
+            signature = byteToHex(crypt.digest());
+        }catch (NoSuchAlgorithmException e){
+            e.printStackTrace();
+        }catch (UnsupportedEncodingException e){
+            e.printStackTrace();
+        }
+        ret.put("url", url);
+        ret.put("jsapi_ticket", jsapiTicket);
+        ret.put("nonceStr", noncestr);
+        ret.put("timestamp", timestamp);
+        ret.put("signature", signature);
+        ret.put("appid", APPID);
+        return ret;
+    }
+    //字节数组转换为十六进制字符串
+    private static String byteToHex(final byte[] hash) {
+        Formatter formatter = new Formatter();
+        for (byte b : hash)
+        {
+            formatter.format("%02x", b);
+        }
+        String result = formatter.toString();
+        formatter.close();
+        return result;
+    }
+    //生成随机字符串
+    private static String createNonceStr() {
+        return UUID.randomUUID().toString();
+    }
+    //生成时间戳
+    private static String createTimestamp() {
+        return Long.toString(System.currentTimeMillis() / 1000);
     }
 }
